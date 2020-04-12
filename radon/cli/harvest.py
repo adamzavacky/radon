@@ -5,7 +5,7 @@ import json
 import sys
 import collections
 from radon.raw import analyze
-from radon.metrics import h_visit, mi_visit, mi_rank
+from radon.metrics import h_visit, mi_visit, mi_rank, rank_evaluation
 from radon.complexity import (cc_visit, sorted_results, cc_rank,
                               add_inner_blocks)
 from radon.cli.colors import RANKS_COLORS, MI_RANKS, RESET
@@ -305,7 +305,9 @@ class MIHarvester(Harvester):
             to_show = ''
             if self.config.show:
                 to_show = ' ({0:.2f})'.format(mi['mi'])
-            yield '{0} - {1}{2}{3}{4}', (name, color, rank, to_show, RESET), {}
+            rank_eval = rank_evaluation(rank)
+            yield '{0} - {1}{2}{3}{4} - {5}', (name, color, rank, to_show, RESET, rank_eval), {}
+
 
 
 class HCHarvester(Harvester):
