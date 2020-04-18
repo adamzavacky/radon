@@ -169,7 +169,6 @@ def mi_visit(code, multi):
     average_mi = (statistics.median([standard, old]))
     average_mi_comments = (statistics.median([standard_comments, old_comments]))
 
-    # data = [[average_mi_comments], [average_mi]]
     print('Result including comments - MI: {}, Rank: {}'.format(round(average_mi_comments, 2),
                                                                 mi_rank(average_mi_comments)))
 
