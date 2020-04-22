@@ -4,6 +4,7 @@ metrics or the Maintainability Index.
 
 import ast
 import math
+import statistics
 import collections
 from radon.visitors import HalsteadVisitor, ComplexityVisitor
 from radon.raw import analyze
@@ -96,6 +97,35 @@ def mi_compute(halstead_volume, complexity, sloc, comments):
     return min(max(0., nn_mi * 100 / 171.), 100.)
 
 
+def mi_compute_without_comments(halstead_volume, complexity, sloc):
+    if any(metric <= 0 for metric in (halstead_volume, sloc)):
+        return 100.
+    sloc_scale = math.log(sloc)
+    volume_scale = math.log(halstead_volume)
+    nn_mi = (171 - 5.2 * volume_scale - .23 * complexity - 16.2 * sloc_scale)
+    return min(max(0., nn_mi * 100 / 171.), 100.)
+
+
+def mi_compute_old(halstead, complexity, sloc):
+    if any(metric <= 0 for metric in (halstead, sloc)):
+        return 100.
+    sloc_scale = math.log(sloc)
+    volume_scale = math.log(halstead)
+    nn_mi = (171 - 3.42 * volume_scale - .23 * complexity - 16.2 * sloc_scale)
+    return min(max(0., nn_mi * 100 / 171.), 100.)
+
+
+def mi_compute_old_comments(halstead, complexity, sloc, comments):
+    if any(metric <= 0 for metric in (halstead, sloc)):
+        return 100.
+    sloc_scale = math.log(sloc)
+    volume_scale = math.log(halstead)
+    # Non-normalized MI
+    nn_mi = (171 - 3.42 * volume_scale - .23 * complexity - 16.2 * sloc_scale +
+             .99 * comments)
+    return min(max(0., nn_mi * 100 / 171.), 100.)
+
+
 def mi_parameters(code, count_multi=True):
     '''Given a source code snippet, compute the necessary parameters to
     compute the Maintainability Index metric. These include:
@@ -118,16 +148,46 @@ def mi_parameters(code, count_multi=True):
             comments)
 
 
+def mi_parameters_without_comments(code):
+    ast_node = ast.parse(code)
+    raw = analyze(code)
+    return (h_visit_ast(ast_node).total.volume,
+            ComplexityVisitor.from_ast(ast_node).total_complexity, raw.lloc)
+
+
 def mi_visit(code, multi):
     '''Visit the code and compute the Maintainability Index (MI) from it.'''
-    return mi_compute(*mi_parameters(code, multi))
+
+    coefficient = 3.333
+    old = mi_compute_old(*mi_parameters_without_comments(code)) / coefficient
+    standard = mi_compute_without_comments(*mi_parameters_without_comments(code)) / coefficient
+
+    old_comments = mi_compute_old_comments(*mi_parameters(code, multi)) / coefficient
+    standard_comments = mi_compute(*mi_parameters(code, multi))/coefficient
+
+    average_mi = (statistics.median([standard, old]))
+    average_mi_comments = (statistics.median([standard_comments, old_comments]))
+
+    print('Result including comments - MI: {}, Rank: {}'.format(round(average_mi_comments, 2),
+                                                                mi_rank(average_mi_comments)))
+
+    return average_mi
+
+
+def rank_evaluation(rank):
+    if rank == 'A':
+        return 'Very high maintainability'
+    if rank == 'B':
+        return 'Medium maintainability'
+    if rank == 'C':
+        return 'Low maintainability'
 
 
 def mi_rank(score):
     r'''Rank the score with a letter:
 
-        * A if :math:`\text{score} > 19`;
-        * B if :math:`9 < \text{score} \le 19`;
-        * C if :math:`\text{score} \le 9`.
+        * A if :math:`\text{score} > 20`;
+        * B if :math:`11 < \text{score} \le 20`;
+        * C if :math:`\text{score} \le 10`.
     '''
-    return chr(65 + (9 - score >= 0) + (19 - score >= 0))
+    return chr(65 + (10 - score >= 0) + (20 - score >= 0))
